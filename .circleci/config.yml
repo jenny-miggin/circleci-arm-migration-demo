@@ -1,0 +1,50 @@
+version: 2.1
+
+setup: true
+
+parameters:
+  base-revision:
+    type: string
+    default: "main"
+  output-path:
+    type: string
+    default: "/tmp/pipeline-parameters.json"
+
+orbs:
+  path-filtering: circleci/path-filtering@1.0.0
+  continuation: circleci/continuation@1.0.0
+
+jobs:
+  path-filter-and-params:
+    docker:
+      - image: cimg/python:3.8
+    steps:
+      - checkout
+      - path-filtering/set-parameters:
+          mapping: |
+            packages/api/.* api true
+            packages/auth/.* auth true
+            packages/e2e/.* e2e true
+            packages/unit/.* unit true
+          # # Optional, defaults to main:
+          base-revision: << pipeline.parameters.base-revision >>
+          output-path: << pipeline.parameters.output-path >>
+      - run:
+          name: Scan params and enable dlc
+          command: |
+            if grep -w "api" << pipeline.parameters.output-path >>; then
+              echo "A job that needs DLC has been found, adding the DLC parameter"
+              params=$(cat << pipeline.parameters.output-path >> )
+              updated_param_file=$(jq -n --argjson a "$params" --argjson b '{"'"dlc"'":true}' '$a + $b')
+              echo "$updated_param_file" > << pipeline.parameters.output-path >>
+            else
+              echo "no DLC jobs found, continuing"
+            fi
+      - continuation/continue:
+          configuration_path: .circleci/continue_config.yml
+          parameters: << pipeline.parameters.output-path >>
+
+workflows:
+  setup-workflow:
+    jobs:
+      - path-filter-and-params

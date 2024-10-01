@@ -1,0 +1,64 @@
+version: 2.1
+
+parameters:
+  api:
+    type: boolean
+    default: false
+  auth:
+    type: boolean
+    default: false
+  e2e:
+    type: boolean
+    default: false
+  unit:
+    type: boolean
+    default: false
+  dlc:
+    type: boolean
+    default: false
+
+jobs:
+  api-build:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: << pipeline.parameters.dlc >>
+    steps:
+      - unless:
+          condition: << pipeline.parameters.api >>
+          steps:
+            - run: circleci-agent step halt
+      - run:
+          name: echo Hello
+          command: |
+            echo "This is the API project"
+  auth-build:
+    docker:
+      - image: cimg/base:2021.01
+    steps:
+      - run:
+          name: echo Hello
+          command: |
+            echo "This is the AUTH project"
+  e2e-tests:
+    docker:
+      - image: cimg/base:2021.01
+    steps:
+      - run:
+          name: echo Testing
+          command: |
+            echo "This is the e2e tests"
+  unit-tests:
+    docker:
+      - image: cimg/base:2021.01
+    steps:
+      - run:
+          name: echo Hello
+          command: |
+            echo "This is the unit tests"
+workflows:
+  test-all:
+    jobs:
+      - api-build
+      - unit-tests
+      - auth-build
+      - e2e-tests
